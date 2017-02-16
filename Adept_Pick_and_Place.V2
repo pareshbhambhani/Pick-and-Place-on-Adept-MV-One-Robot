@@ -1,0 +1,207 @@
+.PROGRAM meproj()
+
+	; Pick-n-place program
+	TYPE "This program would sort widgets using Adept One robot."
+	PROMPT "Press return to proceed", $ret
+	FOR kk = 0 TO 5
+	    TYPE ""
+	END
+    87	
+	TYPE "Please stack 10 widgets at location a."
+	TYPE "And make sure the workplace is clear."
+	TYPE ""
+	PROMPT "If widgets are stacked, press Y", $answer1
+	IF ($answer1 == "Y") OR ($answer1 == "y") THEN
+	    TYPE ""
+	    TYPE "Initiating pick-n-place-n-sort program."
+	    TYPE ""
+	    GOTO 93
+	ELSE
+	    GOTO 87
+	END
+    93	
+	j = 0 ; Count of good widgets.
+	k = 0	; Count of bad widgets.
+	numbwidget = 10	; Number of widgets in stack.
+	m = 0		; Number of transitions across widget in VRULER.
+	cam.virt = 1	; Virtual camera number 1.
+	vv = 40 ; Speed of operation
+
+	; Switches for image grab and processing.
+	ENABLE VISION
+	ENABLE V.BINARY
+	ENABLE V.BACKLIGHT
+	ENABLE V.RECOGNITION
+	ENABLE V.HOLES
+	ENABLE V.PERIMETER
+	ENABLE V.FIT.ARCS
+	ENABLE V.SUBTRACT.HOLE
+	ENABLE V.SHOW.EDGES
+	ENABLE V.SHOW.GRIP
+	ENABLE V.SHOW.RECOG
+	ENABLE V.BOUNDARIES
+	DISABLE V.DISJOINT
+	ENABLE V.CENTROID
+
+	SPEED vv ALWAYS
+	APPROS a, 10	; Start position is 10 mm up location a.
+	OPENI			; Open the gripper.
+
+	FOR i = 0 TO (numbwidget-1)
+    97	    
+	    APPROS a, -i*5+20
+	    IF i == (numbwidget-1) THEN
+		APPROS a, -50
+	    ELSE
+		APPROS a, -i*5-i
+	    END
+	    CLOSEI			; Close the gripper
+	    APPROS a, -i*5+20
+	    SPEED vv
+
+	; Put the widget to an intermediate location b for      
+	; identification of hole.
+	    APPROS b, 5
+	    MOVE b
+	    OPENI
+	    DEPARTS 5
+
+	; Move the robot to location c to bring the widget in field of view of camera.
+	    MOVE #c
+	    DELAY 0.1	; Let camera settle for 0.1 seconds.
+	    BREAK
+
+	; Take the picture and process the image.
+	    VDISPLAY 2, 1	; Binary frame + Graphics Overlay
+	    VPICTURE (cam.virt) -1	; Acquire and process the image
+
+	; Determine the number of transitions across the widget. 
+	    VRULERI (cam.virt, 0, 1) data[] = 1, 305, 100, 210, 105
+	    m = data[0]
+	;    TYPE "Value of m is ", m
+	    BREAK
+
+	; Identify good and bad widgets based on data[0] values and move them to location d and e respectively. 
+	    CASE m OF
+
+	      VALUE 0:
+		TYPE "No widget found. Returning to pick location."
+		TYPE ""
+		APPROS a, 10
+		OPENI
+   103		
+		TYPE "Could you place the unfound widget(s) on top of the stack ?"
+		TYPE ""
+		PROMPT "Did you place the unfound widget(s) at the location? Press Y or N.", $answer3
+		TYPE ""
+		IF ($answer3 == "Y") OR ($answer3 == "y") THEN
+		    GOTO 97
+		ELSE
+		    GOTO 103
+		END
+
+	      VALUE 2:
+		TYPE "Bad widget found."
+		TYPE ""
+
+		APPROS b, 5
+		MOVE b
+		CLOSEI
+		DEPARTS 5
+
+		; Approach location e and place the bad widget.
+		APPROS e, k*5+20
+		APPROS e, k*5.1
+		OPENI
+		DEPARTS k*5+20
+		k = k+1
+
+	      VALUE 4:
+		TYPE "Good widget found."
+		TYPE ""
+
+		APPROS b, 5
+		MOVE b
+		CLOSEI
+		DEPARTS 5
+
+		; Approach location d and place the good widget.
+		APPROS d, j*5+20
+		APPROS d, j*5.1
+		OPENI
+		DEPARTS j*5+20
+		j = j+1
+
+	      ANY
+		TYPE "I am not programmed for this object. Could you program me to pick-n-place-n-sort this object?"
+		ABORT
+	    END
+
+	END
+
+	SPEED vv
+	APPROS a, 10
+
+
+	TYPE "Number of good widgets is ", j
+	TYPE "Number of bad widgets is ", k
+	TYPE "Total number of widgets = ", j+k
+	TYPE ""
+
+	TYPE "The first stack has been sorted."
+	PROMPT "Are there more widgets to process? Press Y or N.", $answer2
+	TYPE ""
+	IF ($answer2 == "Y") OR ($answer2 == "y") THEN
+	    GOTO 87
+	END
+	IF ($answer2 == "N") OR ($answer2 == "n") THEN
+	    TYPE ""
+	    TYPE "All done."
+	    TYPE "Thank you."
+	END
+	STOP
+
+.END
+
+.LOCATIONS
+ a                 -0.398434669 -0.917196751 0 -0.917196751 0.398434669 0
+ 0 0 -1 603.811767578 506.454681396 735.28717041
+ b                 -0.578792751 -0.815474629 0 -0.815474629 0.578792751 0
+ 0 0 -1 667.871337891 140.212371826 684.477
+#c                 54.208595276 -82.278129578 173.60647583 103.501609802
+ d                 -0.322761595 -0.946480274 0 -0.946480274 0.322761595 0
+ 0 0 -1 720.890991211 -212.325927734 683.802100586
+ e                 -0.347082824 -0.937834501 0 -0.937834501 0.347082824 0
+ 0 0 -1 432.453216553 -228.375976562 683.802100586
+
+.END
+
+.REALS
+ cam.virt         1
+ data[0]          2
+ data[1]          1
+ data[2]          27.4375
+ data[3]          200.25
+ data[4]          156.6875
+ data[5]          186.75
+ data[6]          25.117294312
+ data[7]          64.776176453
+ i                1
+ j                0
+ k                1
+ kk               6
+ m                2
+ numbwidget       10
+.END
+
+.DOUBLES
+.END
+
+.STRINGS
+$answer1          "y"
+$answer2          "y"
+$answer3          "y"
+$ret              ""
+.END
+
+
